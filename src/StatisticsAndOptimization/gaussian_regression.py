@@ -1,33 +1,31 @@
 import numpy as np
 from numpy.linalg import LinAlgError
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import sklearn.metrics
-import scipy
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-import time
-
+from typing import Callable, Union, Any
 
 
 def simulated_annealing(
-    x_0: np.array,
-    cost_fnc: callable,
+    x_0: NDArray[Any],
+    cost_fnc: Callable[[NDArray[Any]], float],
     temperature_0: float = 1000,
-    mu: int = 0.99,
+    mu: float = 0.99,
     step_size: float = .02,
-):
-    """Simulated annealing algorithm. 
+) -> Union[NDArray[Any], float]:
+    """Simulated annealing algorithm.
     Reference: Kirkpatrick, Gelatt, Vecchi (1983), "Optimization by Simulated Annealing"
 
     Args:
-        x_0 (np.array): Starting point.
-        cost_fnc (callable): Function to evaluate.
+        x_0 (NDArray): Starting point.
+        cost_fnc (Callable): Function to evaluate.
         temperature_0 (float, optional): Initial temperature. Defaults to 1000.
-        mu (int, optional): Rate of cooling after each iteration. Defaults to 0.99.
+        mu (float, optional): Rate of cooling after each iteration. Defaults to 0.99.
         step_size (float, optional): Step size to explore space. Defaults to .02.
-    
+
     Returns:
-        np.array: Optimizer
+        NDArray: Optimizer
+        float: Optima
     """
     def metropolis_criteria(delta_f: float, _temperature: float) -> float:
         """The Metropolis criteria proposed in Kirkpatrick.
@@ -41,17 +39,17 @@ def simulated_annealing(
         """
         return np.exp(-delta_f / _temperature)
 
-    def validate_x(x_vec: np.array) -> np.array:
+    def validate_x(x_vec: NDArray[Any]) -> NDArray[Any]:
         """Cholesky decomposition relies on positive semidefinite matrices.
         In some edge cases, a step can be taken which results in a matrix
         which is not positive semidefinite. Reset these to ensure parameters
         are greater than zero.
 
         Args:
-            x_vec (np.array): Current evaluation point.
+            x_vec (NDArray): Current evaluation point.
 
         Returns:
-            np.array: Validated evaluation point.
+            NDArray: Validated evaluation point.
         """
         # Ensure always positive
         if min(x_vec) <= 0:
@@ -72,7 +70,7 @@ def simulated_annealing(
     # Kirkpatrick recommends T_k+1 = T_k * mu where 0 < mu < 1
     # Lundy-Mees propose T_k+1 = T_k / (1 + beta * T_k)
     # beta = (T_0 - T_f) / (m T_0 * T_f) where m steps are taken before updating
-    
+
     # Initial testing seems Kirkpatrick is working okay, Lundy-Mees not implemented
     temp = temperature_0
 
@@ -100,38 +98,38 @@ def simulated_annealing(
             x_old = x_new
             f_old = f_new
         else:
-            z = np.random.random()
             del_f = f_old - f_new
 
-            # Seek exploration and accept a worse step iff random number is below 
+            # Seek exploration and accept a worse step iff random number is below
             # Metropolis criteria. This happense more at high temps, as temps lower
-            # the algorithm will favor exploitation as probability to take a worse 
+            # the algorithm will favor exploitation as probability to take a worse
             # step becomes sufficiently low.
             if np.random.random() <= metropolis_criteria(del_f, temp):
                 x_old = x_new
                 f_old = f_new
 
-        temp *= mu # Cool the temperature after each iteration
+        temp *= mu  # Cool the temperature after each iteration
         print(f"{temp:.2f}, {x_old=}, {f_old=:.2f}, {x_star=}, {f_star=:.2f}")
         if temp <= 10:
             # TODO: This convergence criteria could use refinement
             # A fixed temp is analagous to max number of iterations...
             converged = True
             print(f"CONVERGED: {x_star=}, {f_star=:.2f}")
-            return x_star, f_star
+            break
+    return x_star, f_star
 
 
-def normalization(x: np.array, y: np.array):
-    """Normalize a set of x and y points. This is required for effective optimization as hyperparameters 
+def normalization(x: NDArray[Any], y: NDArray[Any]) -> Union[NDArray[Any], NDArray[Any], float, float]:
+    """Normalize a set of x and y points. This is required for effective optimization as hyperparameters
     like step size will be significantly impacted.
 
     Args:
-        x (np.array): Array of x points 
-        y (np.array): Array of y points
+        x (NDArray): Array of x points
+        y (NDArray): Array of y points
 
     Returns:
-        np.array: Normalized array of x points
-        np.array: Normalzied array of y points
+        NDArray: Normalized array of x points
+        NDArray: Normalzied array of y points
         float: Scalar used to normalize x points
         float: Scalar used to normalized y points
     """
@@ -140,7 +138,7 @@ def normalization(x: np.array, y: np.array):
     return x / scale_x, y / scale_y, scale_x, scale_y
 
 
-def kernel(a: float, b: float, length: float=1, sigma_f: float=1) -> float:
+def kernel(a: NDArray[Any], b: NDArray[Any], length: float = 1., sigma_f: float = 1.) -> float:
     """The kernel function used for Gaussian Process Regression. In this case,
     a square distance kernel is implemented.
 
@@ -158,68 +156,68 @@ def kernel(a: float, b: float, length: float=1, sigma_f: float=1) -> float:
 
 
 def gaussian_process(
-    x_train: np.array,
-    y_train: np.array,
-    x_test: np.array,
-) -> callable:
+    x_train: NDArray[Any],
+    y_train: NDArray[Any],
+    x_test: NDArray[Any],
+) -> Union[Callable[[NDArray[Any]], Union[NDArray[Any], NDArray[Any], float, NDArray[Any]]], Callable[[NDArray[Any]], float]]:
     """Setup function for Gaussian Process Regression. This function returns a pair of callables. The callables are the following:
-    - gaussian_process_regression (callable): Returns mean regression, standard deviation, log marginal likelihood, and covariance matrix
-    - cost_fnc (callable): Returns only log marginal likelihood, intended use is for hyperparameter optimization
+    - gaussian_process_regression (Callable): Returns mean regression, standard deviation, log marginal likelihood, and covariance matrix
+    - cost_fnc (Callable): Returns only log marginal likelihood, intended use is for hyperparameter optimization
 
     Primary reference material: https://gaussianprocess.org/gpml/chapters/RW2.pdf
 
     Args:
-        x_train (np.array): Training data set
-        y_train (np.array): Training data set y points
-        x_test (np.array): Desired test points to evaluate
+        x_train (NDArray): Training data set
+        y_train (NDArray): Training data set y points
+        x_test (NDArray): Desired test points to evaluate
 
     Returns:
-        callable: Function to evaluate Gaussian Process Regression for the training data set on test data points
+        Callable: Function to evaluate Gaussian Process Regression for the training data set on test data points
         as a function of a length scale, kernel noise parameter, and evaluation noise parameter.
         # TODO: Are kernel noise parameter and evaluation noise parameter consistent
-    """        
-    def gaussian_process_regression(x_vec):
+    """
+    def gaussian_process_regression(x_vec: NDArray[Any]) -> Union[NDArray[Any], NDArray[Any], float, NDArray[Any]]:
         """Gaussian Process Regression for a set of hyperparameters x_vec.
 
         Args:
-            x_vec (np.array): Vector containing length scale, kernel noise, and evaluation parameter noise
+            x_vec (NDArray): Vector containing length scale, kernel noise, and evaluation parameter noise
 
         Returns:
-            np.array: Gaussian process regression mean
-            np.array: Gaussian process regression standard deviation
+            NDArray: Gaussian process regression mean
+            NDArray: Gaussian process regression standard deviation
             float: Log marginal likelihood
-            np.array: Covariance matrix
+            NDArray: Covariance matrix
         """
         length: float = x_vec[0]
         sigma_f: float = x_vec[1]
         sigma_n2: float = x_vec[2]  # This is technically the square
 
         # Reference Algorithm 2.1 of Rasmussen & Williams
-        n = len(x_train)
+        n: int = len(x_train)
         k_ss = kernel(x_test, x_test, length, sigma_f)
         k = kernel(x_train, x_train, length, sigma_f)
-        l = np.linalg.cholesky(k + sigma_n2 * np.eye(n))
+        l_cholesky = np.linalg.cholesky(k + sigma_n2 * np.eye(n))
         k_s = kernel(x_train, x_test, length, sigma_f)
 
-        alpha = np.linalg.solve(l.transpose(), np.linalg.solve(l, y_train))
+        alpha = np.linalg.solve(l_cholesky.transpose(), np.linalg.solve(l_cholesky, y_train))
         mu = (k_s.transpose() @ alpha).squeeze()
-        v = np.linalg.solve(l, k_s)
+        v = np.linalg.solve(l_cholesky, k_s)
         cov = k_ss - v.transpose() @ v
         std_dev = np.sqrt(np.diag(cov)).squeeze()
 
         # Reference Equationq 2.30 of Rasmussen & Williams
         _lml_1 = -0.5 * y_train.transpose() @ alpha
-        _lml_2 = -0.5 * np.log(np.linalg.det(l))
+        _lml_2 = -0.5 * np.log(np.linalg.det(l_cholesky))
         # _lml_3 = -n / 2 * np.log(2 * np.pi)  # This is const, could throw away
         log_marginal_likelihood = _lml_1[0][0] + _lml_2  # + _lml_3
         log_marginal_likelihood = -log_marginal_likelihood  # Negate for optimization
         return mu, std_dev, log_marginal_likelihood, cov
 
-    def cost_fnc(x_vec: np.array) -> float:
+    def cost_fnc(x_vec: NDArray[Any]) -> float:
         """Cost function for hyperparameter optimization
 
         Args:
-            x_vec (np.array): Vector containing length scale, kernel noise, and evluation noise parameters
+            x_vec (NDArray): Vector containing length scale, kernel noise, and evluation noise parameters
 
         Returns:
             float: Log marinal likelihood
@@ -231,21 +229,21 @@ def gaussian_process(
 
 
 def main():
-    def y(x: np.array, s: int, add_noise: bool = False):
+    def y(x: NDArray[Any], s: int, add_noise: bool = False):
         if add_noise:
             _noise = np.random.normal(0, noise, size=(s, 1))
         else:
             _noise = np.zeros((s, 1))
         return np.sin(x) + _noise
         # return np.sin(x) + x + _noise
-        return -((x + 2) ** 2) / +2 + _noise
+        # return -((x + 2) ** 2) / +2 + _noise
 
     def plotter(
-        _x_train: np.array,
-        _y_train: np.array,
-        _x_test: np.array,
-        _y_test: np.array,
-        _std_dev: np.array,
+        _x_train: NDArray[Any],
+        _y_train: NDArray[Any],
+        _x_test: NDArray[Any],
+        _y_test: NDArray[Any],
+        _std_dev: NDArray[Any],
     ) -> None:
         # plt.plot(_x_test, y(_x_test, len(_x_test)))
         plt.plot(_x_train, _y_train, "bx", ms=6)

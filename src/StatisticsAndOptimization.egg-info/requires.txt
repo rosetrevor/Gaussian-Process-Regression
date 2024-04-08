@@ -1,0 +1,9 @@
+numpy>=1.22
+matplotlib>=3.6
+
+[testing]
+pytest>=6.0
+pytest-cov>=2.0
+mypy>=1.0
+flake8>=4.0
+tox>=4.0

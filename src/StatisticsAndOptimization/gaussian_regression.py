@@ -3,7 +3,7 @@ from numpy.linalg import LinAlgError
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import sklearn.metrics
-from typing import Callable, Union, Any
+from typing import Callable, Any
 
 
 def simulated_annealing(
@@ -11,8 +11,8 @@ def simulated_annealing(
     cost_fnc: Callable[[NDArray[Any]], float],
     temperature_0: float = 1000,
     mu: float = 0.99,
-    step_size: float = .02,
-) -> Union[NDArray[Any], float]:
+    step_size: float = 0.02,
+) -> tuple[NDArray[Any], float]:
     """Simulated annealing algorithm.
     Reference: Kirkpatrick, Gelatt, Vecchi (1983), "Optimization by Simulated Annealing"
 
@@ -27,6 +27,7 @@ def simulated_annealing(
         NDArray: Optimizer
         float: Optima
     """
+
     def metropolis_criteria(delta_f: float, _temperature: float) -> float:
         """The Metropolis criteria proposed in Kirkpatrick.
 
@@ -119,7 +120,9 @@ def simulated_annealing(
     return x_star, f_star
 
 
-def normalization(x: NDArray[Any], y: NDArray[Any]) -> Union[NDArray[Any], NDArray[Any], float, float]:
+def normalization(
+    x: NDArray[Any], y: NDArray[Any]
+) -> tuple[NDArray[Any], NDArray[Any], float, float]:
     """Normalize a set of x and y points. This is required for effective optimization as hyperparameters
     like step size will be significantly impacted.
 
@@ -138,28 +141,40 @@ def normalization(x: NDArray[Any], y: NDArray[Any]) -> Union[NDArray[Any], NDArr
     return x / scale_x, y / scale_y, scale_x, scale_y
 
 
-def kernel(a: NDArray[Any], b: NDArray[Any], length: float = 1., sigma_f: float = 1.) -> float:
+def kernel(
+    a: NDArray[Any],
+    b: NDArray[Any],
+    length: float = 1.0,
+    signal_variance2: float = 1.0,
+    type: str = "SE",
+) -> NDArray[Any]:
     """The kernel function used for Gaussian Process Regression. In this case,
-    a square distance kernel is implemented.
+    a square exponential covariance function is implemented.
 
     Args:
         a (float): Point a of the kernel
         b (float): Point b of the kernel
         length (float, optional): Length scale. Defaults to 1.
-        sigma_f (float, optional): Noise parameter. Defaults to 1.
+        signal_variance2 (float, optional): Signal variance squared. Defaults to 1.
 
     Returns:
         float: Kernel evaluation
     """
-    distance = sklearn.metrics.pairwise_distances(a, b)
-    return sigma_f * np.exp(-1 / (2 * length**2) * distance**2)
+    if type == "SE":
+        distance = sklearn.metrics.pairwise_distances(a, b)
+        return signal_variance2 * np.exp(-1 / (2 * length**2) * distance**2)
+    else:
+        raise NotImplementedError(f"Kernel type of {type} is not supported")
 
 
 def gaussian_process(
     x_train: NDArray[Any],
     y_train: NDArray[Any],
     x_test: NDArray[Any],
-) -> Union[Callable[[NDArray[Any]], Union[NDArray[Any], NDArray[Any], float, NDArray[Any]]], Callable[[NDArray[Any]], float]]:
+) -> tuple[
+    Callable[[NDArray[Any]], tuple[NDArray[Any], NDArray[Any], float, NDArray[Any]]],
+    Callable[[NDArray[Any]], float],
+]:
     """Setup function for Gaussian Process Regression. This function returns a pair of callables. The callables are the following:
     - gaussian_process_regression (Callable): Returns mean regression, standard deviation, log marginal likelihood, and covariance matrix
     - cost_fnc (Callable): Returns only log marginal likelihood, intended use is for hyperparameter optimization
@@ -176,11 +191,14 @@ def gaussian_process(
         as a function of a length scale, kernel noise parameter, and evaluation noise parameter.
         # TODO: Are kernel noise parameter and evaluation noise parameter consistent
     """
-    def gaussian_process_regression(x_vec: NDArray[Any]) -> Union[NDArray[Any], NDArray[Any], float, NDArray[Any]]:
+
+    def gaussian_process_regression(
+        x_vec: NDArray[Any],
+    ) -> tuple[NDArray[Any], NDArray[Any], float, NDArray[Any]]:
         """Gaussian Process Regression for a set of hyperparameters x_vec.
 
         Args:
-            x_vec (NDArray): Vector containing length scale, kernel noise, and evaluation parameter noise
+            x_vec (NDArray): Vector containing length scale, signal variance, and noise variance
 
         Returns:
             NDArray: Gaussian process regression mean
@@ -189,20 +207,22 @@ def gaussian_process(
             NDArray: Covariance matrix
         """
         length: float = x_vec[0]
-        sigma_f: float = x_vec[1]
-        sigma_n2: float = x_vec[2]  # This is technically the square
+        signal_variance2: float = x_vec[1]
+        noise_variance2: float = x_vec[2]  # This is technically the square
 
         # Reference Algorithm 2.1 of Rasmussen & Williams
         n: int = len(x_train)
-        k_ss = kernel(x_test, x_test, length, sigma_f)
-        k = kernel(x_train, x_train, length, sigma_f)
-        l_cholesky = np.linalg.cholesky(k + sigma_n2 * np.eye(n))
-        k_s = kernel(x_train, x_test, length, sigma_f)
+        k_ss = kernel(x_test, x_test, length, signal_variance2)
+        k = kernel(x_train, x_train, length, signal_variance2)
+        l_cholesky = np.linalg.cholesky(k + noise_variance2 * np.eye(n))
+        k_s = kernel(x_train, x_test, length, signal_variance2)
 
-        alpha = np.linalg.solve(l_cholesky.transpose(), np.linalg.solve(l_cholesky, y_train))
+        alpha = np.linalg.solve(
+            l_cholesky.transpose(), np.linalg.solve(l_cholesky, y_train)
+        )
         mu = (k_s.transpose() @ alpha).squeeze()
         v = np.linalg.solve(l_cholesky, k_s)
-        cov = k_ss - v.transpose() @ v
+        cov: NDArray[Any] = k_ss - v.transpose() @ v
         std_dev = np.sqrt(np.diag(cov)).squeeze()
 
         # Reference Equationq 2.30 of Rasmussen & Williams
@@ -225,6 +245,7 @@ def gaussian_process(
         # This allows re-write to optimize f(x)
         _, _, log_marginal_likelihood, cov = gaussian_process_regression(x_vec)
         return log_marginal_likelihood
+
     return gaussian_process_regression, cost_fnc
 
 

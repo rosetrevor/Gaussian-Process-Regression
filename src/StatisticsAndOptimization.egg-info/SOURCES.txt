@@ -12,4 +12,4 @@ src/StatisticsAndOptimization.egg-info/dependency_links.txt
 src/StatisticsAndOptimization.egg-info/not-zip-safe
 src/StatisticsAndOptimization.egg-info/requires.txt
 src/StatisticsAndOptimization.egg-info/top_level.txt
-test/test_gaussian_regression.py
+tests/test_gaussian_regression.py

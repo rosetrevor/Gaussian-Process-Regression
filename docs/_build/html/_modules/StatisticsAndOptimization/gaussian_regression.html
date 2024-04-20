@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StatisticsAndOptimization.gaussian_regression &mdash; Statistics &amp; Optimization 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Statistics & Optimization
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Statistics & Optimization</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">StatisticsAndOptimization.gaussian_regression</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for StatisticsAndOptimization.gaussian_regression</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.linalg</span> <span class="kn">import</span> <span class="n">LinAlgError</span>
+<span class="kn">from</span> <span class="nn">numpy.typing</span> <span class="kn">import</span> <span class="n">NDArray</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">sklearn.metrics</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span>
+
+
+<div class="viewcode-block" id="simulated_annealing">
+<a class="viewcode-back" href="../../StatisticsAndOptimization.html#StatisticsAndOptimization.gaussian_regression.simulated_annealing">[docs]</a>
+<span class="k">def</span> <span class="nf">simulated_annealing</span><span class="p">(</span>
+    <span class="n">x_0</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">cost_fnc</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="n">temperature_0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="n">mu</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.99</span><span class="p">,</span>
+    <span class="n">step_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.02</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simulated annealing algorithm.</span>
+<span class="sd">    Reference: Kirkpatrick, Gelatt, Vecchi (1983), &quot;Optimization by Simulated Annealing&quot;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        x_0 (NDArray): Starting point.</span>
+<span class="sd">        cost_fnc (Callable): Function to evaluate.</span>
+<span class="sd">        temperature_0 (float, optional): Initial temperature. Defaults to 1000.</span>
+<span class="sd">        mu (float, optional): Rate of cooling after each iteration. Defaults to 0.99.</span>
+<span class="sd">        step_size (float, optional): Step size to explore space. Defaults to .02.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        NDArray: Optimizer</span>
+<span class="sd">        float: Optima</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">metropolis_criteria</span><span class="p">(</span><span class="n">delta_f</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">_temperature</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The Metropolis criteria proposed in Kirkpatrick.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            delta_f (float): Difference between function evaluations</span>
+<span class="sd">            _temperature (float): Current temperature</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            float: Metropolis criteria to evaluate against.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">delta_f</span> <span class="o">/</span> <span class="n">_temperature</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate_x</span><span class="p">(</span><span class="n">x_vec</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cholesky decomposition relies on positive semidefinite matrices.</span>
+<span class="sd">        In some edge cases, a step can be taken which results in a matrix</span>
+<span class="sd">        which is not positive semidefinite. Reset these to ensure parameters</span>
+<span class="sd">        are greater than zero.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x_vec (NDArray): Current evaluation point.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            NDArray: Validated evaluation point.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Ensure always positive</span>
+        <span class="k">if</span> <span class="nb">min</span><span class="p">(</span><span class="n">x_vec</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">x_vec</span> <span class="o">+=</span> <span class="nb">min</span><span class="p">(</span><span class="n">x_vec</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.000001</span>
+        <span class="k">return</span> <span class="n">x_vec</span>
+
+    <span class="k">def</span> <span class="nf">check_convergence</span><span class="p">(</span><span class="n">_temperature</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if algorithm has converged.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            _temperature (float): Current temperature</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: is converged</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">temp</span> <span class="o">&lt;=</span> <span class="mi">10</span>
+
+    <span class="c1"># Kirkpatrick recommends T_k+1 = T_k * mu where 0 &lt; mu &lt; 1</span>
+    <span class="c1"># Lundy-Mees propose T_k+1 = T_k / (1 + beta * T_k)</span>
+    <span class="c1"># beta = (T_0 - T_f) / (m T_0 * T_f) where m steps are taken before updating</span>
+
+    <span class="c1"># Initial testing seems Kirkpatrick is working okay, Lundy-Mees not implemented</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">temperature_0</span>
+
+    <span class="c1"># Initialize at starting point</span>
+    <span class="n">x_star</span> <span class="o">=</span> <span class="n">x_0</span>
+    <span class="n">f_star</span> <span class="o">=</span> <span class="n">cost_fnc</span><span class="p">(</span><span class="n">x_0</span><span class="p">)</span>
+
+    <span class="n">x_old</span> <span class="o">=</span> <span class="n">x_0</span>
+    <span class="n">f_old</span> <span class="o">=</span> <span class="n">cost_fnc</span><span class="p">(</span><span class="n">x_0</span><span class="p">)</span>
+
+    <span class="n">converged</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">converged</span><span class="p">:</span>
+        <span class="c1"># Move randomly</span>
+        <span class="n">x_new</span> <span class="o">=</span> <span class="n">validate_x</span><span class="p">(</span><span class="n">x_old</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_size</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f_new</span> <span class="o">=</span> <span class="n">cost_fnc</span><span class="p">(</span><span class="n">x_new</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">LinAlgError</span><span class="p">:</span>
+            <span class="n">f_new</span> <span class="o">=</span> <span class="n">f_old</span>
+            <span class="n">x_new</span> <span class="o">=</span> <span class="n">x_old</span>
+        <span class="k">if</span> <span class="n">f_new</span> <span class="o">&lt;=</span> <span class="n">f_star</span><span class="p">:</span>
+            <span class="c1"># Always ccept step, update to new best</span>
+            <span class="n">x_star</span> <span class="o">=</span> <span class="n">x_new</span>
+            <span class="n">f_star</span> <span class="o">=</span> <span class="n">f_new</span>
+
+            <span class="n">x_old</span> <span class="o">=</span> <span class="n">x_new</span>
+            <span class="n">f_old</span> <span class="o">=</span> <span class="n">f_new</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">del_f</span> <span class="o">=</span> <span class="n">f_old</span> <span class="o">-</span> <span class="n">f_new</span>
+
+            <span class="c1"># Seek exploration and accept a worse step iff random number is below</span>
+            <span class="c1"># Metropolis criteria. This happense more at high temps, as temps lower</span>
+            <span class="c1"># the algorithm will favor exploitation as probability to take a worse</span>
+            <span class="c1"># step becomes sufficiently low.</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">metropolis_criteria</span><span class="p">(</span><span class="n">del_f</span><span class="p">,</span> <span class="n">temp</span><span class="p">):</span>
+                <span class="n">x_old</span> <span class="o">=</span> <span class="n">x_new</span>
+                <span class="n">f_old</span> <span class="o">=</span> <span class="n">f_new</span>
+
+        <span class="n">temp</span> <span class="o">*=</span> <span class="n">mu</span>  <span class="c1"># Cool the temperature after each iteration</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">temp</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">x_old</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">f_old</span><span class="si">=:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">x_star</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">f_star</span><span class="si">=:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">temp</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="c1"># TODO: This convergence criteria could use refinement</span>
+            <span class="c1"># A fixed temp is analagous to max number of iterations...</span>
+            <span class="n">converged</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CONVERGED: </span><span class="si">{</span><span class="n">x_star</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">f_star</span><span class="si">=:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">x_star</span><span class="p">,</span> <span class="n">f_star</span></div>
+
+
+
+<div class="viewcode-block" id="normalization">
+<a class="viewcode-back" href="../../StatisticsAndOptimization.html#StatisticsAndOptimization.gaussian_regression.normalization">[docs]</a>
+<span class="k">def</span> <span class="nf">normalization</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize a set of x and y points. This is required for effective optimization as hyperparameters</span>
+<span class="sd">    like step size will be significantly impacted.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        x (NDArray): Array of x points</span>
+<span class="sd">        y (NDArray): Array of y points</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        NDArray: Normalized array of x points</span>
+<span class="sd">        NDArray: Normalzied array of y points</span>
+<span class="sd">        float: Scalar used to normalize x points</span>
+<span class="sd">        float: Scalar used to normalized y points</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scale_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">scale_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">y</span> <span class="o">/</span> <span class="n">scale_y</span><span class="p">,</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span></div>
+
+
+
+<div class="viewcode-block" id="kernel">
+<a class="viewcode-back" href="../../StatisticsAndOptimization.html#StatisticsAndOptimization.gaussian_regression.kernel">[docs]</a>
+<span class="k">def</span> <span class="nf">kernel</span><span class="p">(</span>
+    <span class="n">a</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">b</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">signal_variance2</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;SE&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The kernel function used for Gaussian Process Regression. In this case,</span>
+<span class="sd">    a square exponential covariance function is implemented.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        a (float): Point a of the kernel</span>
+<span class="sd">        b (float): Point b of the kernel</span>
+<span class="sd">        length (float, optional): Length scale. Defaults to 1.</span>
+<span class="sd">        signal_variance2 (float, optional): Signal variance squared. Defaults to 1.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: Kernel evaluation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;SE&quot;</span><span class="p">:</span>
+        <span class="n">distance</span> <span class="o">=</span> <span class="n">sklearn</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">pairwise_distances</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">signal_variance2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">length</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">distance</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Kernel type of </span><span class="si">{</span><span class="nb">type</span><span class="si">}</span><span class="s2"> is not supported&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="gaussian_process">
+<a class="viewcode-back" href="../../StatisticsAndOptimization.html#StatisticsAndOptimization.gaussian_regression.gaussian_process">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussian_process</span><span class="p">(</span>
+    <span class="n">x_train</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">y_train</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">x_test</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span>
+    <span class="n">Callable</span><span class="p">[[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="nb">float</span><span class="p">,</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]]],</span>
+    <span class="n">Callable</span><span class="p">[[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="nb">float</span><span class="p">],</span>
+<span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Setup function for Gaussian Process Regression. This function returns a pair of callables. The callables are the following:</span>
+<span class="sd">    - gaussian_process_regression (Callable): Returns mean regression, standard deviation, log marginal likelihood, and covariance matrix</span>
+<span class="sd">    - cost_fnc (Callable): Returns only log marginal likelihood, intended use is for hyperparameter optimization</span>
+
+<span class="sd">    Primary reference material: https://gaussianprocess.org/gpml/chapters/RW2.pdf</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        x_train (NDArray): Training data set</span>
+<span class="sd">        y_train (NDArray): Training data set y points</span>
+<span class="sd">        x_test (NDArray): Desired test points to evaluate</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Callable: Function to evaluate Gaussian Process Regression for the training data set on test data points</span>
+<span class="sd">        as a function of a length scale, kernel noise parameter, and evaluation noise parameter.</span>
+<span class="sd">        # TODO: Are kernel noise parameter and evaluation noise parameter consistent</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">gaussian_process_regression</span><span class="p">(</span>
+        <span class="n">x_vec</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="nb">float</span><span class="p">,</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Gaussian Process Regression for a set of hyperparameters x_vec.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x_vec (NDArray): Vector containing length scale, signal variance, and noise variance</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            NDArray: Gaussian process regression mean</span>
+<span class="sd">            NDArray: Gaussian process regression standard deviation</span>
+<span class="sd">            float: Log marginal likelihood</span>
+<span class="sd">            NDArray: Covariance matrix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">length</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">x_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">signal_variance2</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">x_vec</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">noise_variance2</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">x_vec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># This is technically the square</span>
+
+        <span class="c1"># Reference Algorithm 2.1 of Rasmussen &amp; Williams</span>
+        <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_train</span><span class="p">)</span>
+        <span class="n">k_ss</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">signal_variance2</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_train</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">signal_variance2</span><span class="p">)</span>
+        <span class="n">l_cholesky</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">k</span> <span class="o">+</span> <span class="n">noise_variance2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+        <span class="n">k_s</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">signal_variance2</span><span class="p">)</span>
+
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+            <span class="n">l_cholesky</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">l_cholesky</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_s</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="o">@</span> <span class="n">alpha</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">l_cholesky</span><span class="p">,</span> <span class="n">k_s</span><span class="p">)</span>
+        <span class="n">cov</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">k_ss</span> <span class="o">-</span> <span class="n">v</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="o">@</span> <span class="n">v</span>
+        <span class="n">std_dev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cov</span><span class="p">))</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+
+        <span class="c1"># Reference Equationq 2.30 of Rasmussen &amp; Williams</span>
+        <span class="n">_lml_1</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">y_train</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="o">@</span> <span class="n">alpha</span>
+        <span class="n">_lml_2</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">l_cholesky</span><span class="p">))</span>
+        <span class="c1"># _lml_3 = -n / 2 * np.log(2 * np.pi)  # This is const, could throw away</span>
+        <span class="n">log_marginal_likelihood</span> <span class="o">=</span> <span class="n">_lml_1</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_lml_2</span>  <span class="c1"># + _lml_3</span>
+        <span class="n">log_marginal_likelihood</span> <span class="o">=</span> <span class="o">-</span><span class="n">log_marginal_likelihood</span>  <span class="c1"># Negate for optimization</span>
+        <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std_dev</span><span class="p">,</span> <span class="n">log_marginal_likelihood</span><span class="p">,</span> <span class="n">cov</span>
+
+    <span class="k">def</span> <span class="nf">cost_fnc</span><span class="p">(</span><span class="n">x_vec</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cost function for hyperparameter optimization</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x_vec (NDArray): Vector containing length scale, kernel noise, and evluation noise parameters</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            float: Log marinal likelihood</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># This allows re-write to optimize f(x)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">log_marginal_likelihood</span><span class="p">,</span> <span class="n">cov</span> <span class="o">=</span> <span class="n">gaussian_process_regression</span><span class="p">(</span><span class="n">x_vec</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">log_marginal_likelihood</span>
+
+    <span class="k">return</span> <span class="n">gaussian_process_regression</span><span class="p">,</span> <span class="n">cost_fnc</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../StatisticsAndOptimization.html#StatisticsAndOptimization.gaussian_regression.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span> <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">add_noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">add_noise</span><span class="p">:</span>
+            <span class="n">_noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">s</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="n">_noise</span>
+        <span class="c1"># return np.sin(x) + x + _noise</span>
+        <span class="c1"># return -((x + 2) ** 2) / +2 + _noise</span>
+
+    <span class="k">def</span> <span class="nf">plotter</span><span class="p">(</span>
+        <span class="n">_x_train</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">_y_train</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">_x_test</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">_y_test</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">_std_dev</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># plt.plot(_x_test, y(_x_test, len(_x_test)))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">_x_train</span><span class="p">,</span> <span class="n">_y_train</span><span class="p">,</span> <span class="s2">&quot;bx&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test - 1 * _std_dev, &quot;:&quot;, color=&quot;#080808&quot;)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test + 1 * _std_dev, &quot;:&quot;, color=&quot;#080808&quot;)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test - 2 * _std_dev, &quot;--&quot;, color=&quot;#080808&quot;)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test + 2 * _std_dev, &quot;--&quot;, color=&quot;#080808&quot;)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test - 3 * _std_dev, color=&quot;#080808&quot;)</span>
+        <span class="c1"># plt.plot(_x_test.flat, _y_test + 3 * _std_dev, color=&quot;#080808&quot;)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span>
+            <span class="n">_x_test</span><span class="o">.</span><span class="n">flat</span><span class="p">,</span>
+            <span class="n">_y_test</span> <span class="o">-</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">_std_dev</span><span class="p">,</span>
+            <span class="n">_y_test</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">_std_dev</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#dddddd&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">_x_test</span><span class="p">,</span> <span class="n">_y_test</span><span class="p">,</span> <span class="s2">&quot;r--&quot;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Three samples from GP posterior&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">n_train</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">x_train</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n_train</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">y_train</span> <span class="o">=</span> <span class="n">y</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">n_train</span><span class="p">,</span> <span class="n">add_noise</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">x_train_norm</span><span class="p">,</span> <span class="n">y_train_norm</span><span class="p">,</span> <span class="n">x_scale</span><span class="p">,</span> <span class="n">y_scale</span> <span class="o">=</span> <span class="n">normalization</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+    <span class="c1"># x_train_norm = x_train</span>
+    <span class="c1"># y_train_norm = y_train</span>
+    <span class="c1"># x_scale = 1.0</span>
+    <span class="c1"># y_scale = 1.0</span>
+
+    <span class="n">n_test</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">x_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">x_train_norm</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">x_train_norm</span><span class="p">),</span> <span class="n">n_test</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">gp_callable</span><span class="p">,</span> <span class="n">cost_fnc</span> <span class="o">=</span> <span class="n">gaussian_process</span><span class="p">(</span><span class="n">x_train_norm</span><span class="p">,</span> <span class="n">y_train_norm</span><span class="p">,</span> <span class="n">x_test</span><span class="p">)</span>
+    <span class="n">x_star</span><span class="p">,</span> <span class="n">f_star</span> <span class="o">=</span> <span class="n">simulated_annealing</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">]),</span> <span class="n">cost_fnc</span><span class="p">)</span>
+    <span class="n">y_test</span><span class="p">,</span> <span class="n">std_dev</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gp_callable</span><span class="p">(</span><span class="n">x_star</span><span class="p">)</span>
+    <span class="n">plotter</span><span class="p">(</span>
+        <span class="n">x_train_norm</span><span class="p">,</span>
+        <span class="n">y_train_norm</span><span class="p">,</span>
+        <span class="n">x_test</span><span class="p">,</span>
+        <span class="n">y_test</span><span class="p">,</span>
+        <span class="n">std_dev</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+    <span class="c1"># for lscale in [1, 5, 0.1]:</span>
+    <span class="c1">#     y_test, std_dev, lml = gaussian_process(np.array([lscale, 1, 1]))</span>
+    <span class="c1">#     print(lml)</span>
+    <span class="c1">#     plotter(x_train, y_train, x_test, y_test, std_dev)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Trevor Rose.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

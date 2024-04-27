@@ -6,6 +6,49 @@ import sklearn.metrics
 from typing import Callable, Any
 
 
+def metropolis_criteria(delta_f: float, _temperature: float) -> float:
+    """The Metropolis criteria proposed in Kirkpatrick.
+
+    Args:
+        delta_f (float): Difference between function evaluations
+        _temperature (float): Current temperature
+
+    Returns:
+        float: Metropolis criteria to evaluate against.
+    """
+    return np.exp(-delta_f / _temperature)
+
+
+def _validate_x(x_vec: NDArray[Any]) -> NDArray[Any]:
+    """Cholesky decomposition relies on positive semidefinite matrices.
+    In some edge cases, a step can be taken which results in a matrix
+    which is not positive semidefinite. Reset these to ensure parameters
+    are greater than zero.
+
+    Args:
+        x_vec (NDArray): Current evaluation point.
+
+    Returns:
+        NDArray: Validated evaluation point.
+    """
+    # Ensure always positive
+    if min(x_vec) <= 0:
+        x_vec += min(x_vec) + 0.000001
+    return x_vec
+
+
+def _check_convergence(_temperature: float) -> bool:
+    """Check if algorithm has converged.
+
+    Args:
+        _temperature (float): Current temperature
+
+    Returns:
+        bool: is converged
+    """
+    return _temperature <= 10
+
+
 def simulated_annealing(
     x_0: NDArray[Any],
     cost_fnc: Callable[[NDArray[Any]], float],
@@ -27,47 +70,6 @@ def simulated_annealing(
         NDArray: Optimizer
         float: Optima
     """
-
-    def metropolis_criteria(delta_f: float, _temperature: float) -> float:
-        """The Metropolis criteria proposed in Kirkpatrick.
-
-        Args:
-            delta_f (float): Difference between function evaluations
-            _temperature (float): Current temperature
-
-        Returns:
-            float: Metropolis criteria to evaluate against.
-        """
-        return np.exp(-delta_f / _temperature)
-
-    def validate_x(x_vec: NDArray[Any]) -> NDArray[Any]:
-        """Cholesky decomposition relies on positive semidefinite matrices.
-        In some edge cases, a step can be taken which results in a matrix
-        which is not positive semidefinite. Reset these to ensure parameters
-        are greater than zero.
-
-        Args:
-            x_vec (NDArray): Current evaluation point.
-
-        Returns:
-            NDArray: Validated evaluation point.
-        """
-        # Ensure always positive
-        if min(x_vec) <= 0:
-            x_vec += min(x_vec) + 0.000001
-        return x_vec
-
-    def check_convergence(_temperature: float) -> bool:
-        """Check if algorithm has converged.
-
-        Args:
-            _temperature (float): Current temperature
-
-        Returns:
-            bool: is converged
-        """
-        return temp <= 10
-
     # Kirkpatrick recommends T_k+1 = T_k * mu where 0 < mu < 1
     # Lundy-Mees propose T_k+1 = T_k / (1 + beta * T_k)
     # beta = (T_0 - T_f) / (m T_0 * T_f) where m steps are taken before updating
@@ -85,7 +87,7 @@ def simulated_annealing(
     converged = False
     while not converged:
         # Move randomly
-        x_new = validate_x(x_old + (np.random.rand(3) * 2 - 1) * step_size)
+        x_new = _validate_x(x_old + (np.random.rand(3) * 2 - 1) * step_size)
         try:
             f_new = cost_fnc(x_new)
         except LinAlgError:
@@ -111,7 +113,7 @@ def simulated_annealing(
 
         temp *= mu  # Cool the temperature after each iteration
         print(f"{temp:.2f}, {x_old=}, {f_old=:.2f}, {x_star=}, {f_star=:.2f}")
-        if temp <= 10:
+        if _check_convergence(temp):
             # TODO: This convergence criteria could use refinement
             # A fixed temp is analagous to max number of iterations...
             converged = True
@@ -213,7 +215,7 @@ def gaussian_process(
         # Reference Algorithm 2.1 of Rasmussen & Williams
         n: int = len(x_train)
         k_ss = kernel(x_test, x_test, length, signal_variance2)
-        k = kernel(x_train, x_train, length, signal_variance2)
+        k = kernel(x_train, x_train, length, signal_variance2)  # The Gram matrix
         l_cholesky = np.linalg.cholesky(k + noise_variance2 * np.eye(n))
         k_s = kernel(x_train, x_test, length, signal_variance2)
 
@@ -255,9 +257,9 @@ def main():
             _noise = np.random.normal(0, noise, size=(s, 1))
         else:
             _noise = np.zeros((s, 1))
-        return np.sin(x) + _noise
+        # return np.sin(x) + _noise
         # return np.sin(x) + x + _noise
-        # return -((x + 2) ** 2) / +2 + _noise
+        return -((x + 2) ** 2) / +2 + _noise
 
     def plotter(
         _x_train: NDArray[Any],

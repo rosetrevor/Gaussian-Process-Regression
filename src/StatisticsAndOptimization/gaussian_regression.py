@@ -32,8 +32,9 @@ def _validate_x(x_vec: NDArray[Any]) -> NDArray[Any]:
         NDArray: Validated evaluation point.
     """
     # Ensure always positive
-    if min(x_vec) <= 0:
-        x_vec += min(x_vec) + 0.000001
+    for idx, _x in enumerate(x_vec):
+        if _x < 0:
+            x_vec[idx] = 0.000001
     return x_vec
 
 

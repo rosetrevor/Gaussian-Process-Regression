@@ -6,17 +6,18 @@ import sklearn.metrics
 from typing import Callable, Any
 
 
-def metropolis_criteria(delta_f: float, _temperature: float) -> float:
+def metropolis_criteria(delta_f: float, temperature: float) -> float:
     """The Metropolis criteria proposed in Kirkpatrick.
 
     Args:
         delta_f (float): Difference between function evaluations
-        _temperature (float): Current temperature
+        temperature (float): Current temperature
 
     Returns:
         float: Metropolis criteria to evaluate against.
     """
-    return np.exp(-delta_f / _temperature)
+    print(f"Metropolis: {np.exp(-delta_f / temperature):.2f} ({delta_f})")
+    return np.exp(-delta_f / temperature)
 
 
 def _validate_x(x_vec: NDArray[Any]) -> NDArray[Any]:
@@ -102,7 +103,7 @@ def simulated_annealing(
             x_old = x_new
             f_old = f_new
         else:
-            del_f = f_old - f_new
+            del_f = f_new - f_old
 
             # Seek exploration and accept a worse step iff random number is below
             # Metropolis criteria. This happense more at high temps, as temps lower
@@ -113,7 +114,7 @@ def simulated_annealing(
                 f_old = f_new
 
         temp *= mu  # Cool the temperature after each iteration
-        print(f"{temp:.2f}, {x_old=}, {f_old=:.2f}, {x_star=}, {f_star=:.2f}")
+        # print(f"{temp:.2f}, {x_old=}, {f_old=:.2f}, {x_star=}, {f_star=:.2f}")
         if _check_convergence(temp):
             # TODO: This convergence criteria could use refinement
             # A fixed temp is analagous to max number of iterations...
@@ -259,8 +260,8 @@ def main():
         else:
             _noise = np.zeros((s, 1))
         # return np.sin(x) + _noise
-        # return np.sin(x) + x + _noise
-        return -((x + 2) ** 2) / +2 + _noise
+        return np.sin(x) + x + _noise
+        # return -((x + 2) ** 2) / +2 + _noise
 
     def plotter(
         _x_train: NDArray[Any],
@@ -269,14 +270,7 @@ def main():
         _y_test: NDArray[Any],
         _std_dev: NDArray[Any],
     ) -> None:
-        # plt.plot(_x_test, y(_x_test, len(_x_test)))
         plt.plot(_x_train, _y_train, "bx", ms=6)
-        # plt.plot(_x_test.flat, _y_test - 1 * _std_dev, ":", color="#080808")
-        # plt.plot(_x_test.flat, _y_test + 1 * _std_dev, ":", color="#080808")
-        # plt.plot(_x_test.flat, _y_test - 2 * _std_dev, "--", color="#080808")
-        # plt.plot(_x_test.flat, _y_test + 2 * _std_dev, "--", color="#080808")
-        # plt.plot(_x_test.flat, _y_test - 3 * _std_dev, color="#080808")
-        # plt.plot(_x_test.flat, _y_test + 3 * _std_dev, color="#080808")
         plt.gca().fill_between(
             _x_test.flat,
             _y_test - 3 * _std_dev,

@@ -9,12 +9,12 @@ from StatisticsAndOptimization.gaussian_regression import (
 
 
 def test_simulated_annealing():
-    simulated_annealing
     assert True is True
 
 
 def test_metropolis_criteria():
-    assert True is True
+    assert metropolis_criteria(10, 100) < 1
+    assert metropolis_criteria(100, 1) < 1
 
 
 def test_convergence():

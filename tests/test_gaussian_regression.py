@@ -1,7 +1,6 @@
 import numpy as np
 
 from StatisticsAndOptimization.gaussian_regression import (
-    simulated_annealing,
     _check_convergence,
     _validate_x,
     metropolis_criteria,
